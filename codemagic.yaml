@@ -6,10 +6,9 @@ workflows:
     integrations:
       app_store_connect: Kid Learning   # name of the App Store Connect integration you create in Codemagic UI
     environment:
-      ios signing:
-        distribution_type: ad_hoc # 或者  app_store
-        bundle_identifier:
-    com.fafa.kidlearning
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.fafa.kidlearning
       vars:
         XCODE_WORKSPACE: "App.xcworkspace"
         XCODE_SCHEME: "App"
