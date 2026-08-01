@@ -28,18 +28,15 @@ workflows:
             npm init -y
           fi
           npm install @capacitor/core @capacitor/ios --save-exact
-
       - name: Fix Podfile path to node_modules
         script: |
           # The Podfile expects ../../node_modules (as if it lived two levels
           # deep inside a full Capacitor project). Since it actually sits at
           # the repo root here, point it at ./node_modules instead.
           sed -i '' 's#\.\./\.\./node_modules#./node_modules#g' Podfile
-
       - name: Install CocoaPods dependencies
         script: |
           pod install
-
       - name: Fetch signing files
         script: |
           # Downloads a matching App Store distribution profile from Apple,
@@ -49,15 +46,12 @@ workflows:
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
-
       - name: Set up signing certificate
         script: |
           keychain add-certificates
-
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
-
       - name: Ensure Xcode scheme is available
         script: |
           # No shared .xcscheme is committed, so force Xcode to resolve/
@@ -65,18 +59,15 @@ workflows:
           # you'll need to open the project in Xcode once and commit
           # App.xcworkspace/xcshareddata/xcschemes/App.xcscheme.
           xcodebuild -workspace "$XCODE_WORKSPACE" -list
-
       - name: Build ipa for distribution
         script: |
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
-
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
-
     publishing:
       email:
         recipients:
@@ -84,6 +75,10 @@ workflows:
         notify:
           success: true
           failure: false
-      # app_store_connect:
-      #   auth: integration
-      #   submit_to_testflight: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Uncomment below if you also want it submitted for App Store review
+        # after TestFlight processing (requires release notes / metadata to
+        # already be filled in on App Store Connect):
+        # submit_to_app_store: false
