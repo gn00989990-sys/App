@@ -4,7 +4,7 @@ workflows:
     instance_type: mac_mini_m1
     max_build_duration: 60
     integrations:
-      app_store_connect: Kid Learning   # name of the App Store Connect integration you create in Codemagic UI
+      app_store_connect: "Kid Learning"   # name of the App Store Connect integration you create in Codemagic UI
     environment:
       ios_signing:
         distribution_type: app_store
@@ -42,13 +42,14 @@ workflows:
           pod install
       - name: Fetch signing files
         script: |
-          # Downloads a matching App Store distribution profile from Apple,
-          # creating one automatically if it doesn't exist yet ("--create").
+          # Downloads the App Store distribution provisioning profile from
+          # Apple, matched to your manually uploaded certificate.
           # Requires: BUNDLE_ID registered as an App ID in the Apple Developer
-          # portal, and an app record for it created in App Store Connect.
+          # portal, an app record for it created in App Store Connect, and
+          # a matching iOS Distribution certificate already uploaded in
+          # Codemagic (Team settings > Code signing identities).
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
+            --type IOS_APP_STORE
       - name: Set up signing certificate
         script: |
           keychain add-certificates
