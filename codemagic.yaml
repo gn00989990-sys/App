@@ -25,11 +25,38 @@ workflows:
     scripts:
       - name: Install Capacitor iOS package
         script: |
-          # No package.json is committed in this repo, so create a minimal one
-          # and install the @capacitor/ios package the Podfile depends on.
           if [ ! -f package.json ]; then
             npm init -y
           fi
           npm install @capacitor/core @capacitor/ios --save-exact
       - name: Fix Podfile path to node_modules
         script: |
+          sed -i '' 's#\.\./\.\./node_modules#./node_modules#g' Podfile
+      - name: Install CocoaPods dependencies
+        script: |
+          pod install
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      - name: Ensure Xcode scheme is available
+        script: |
+          xcodebuild -workspace "$XCODE_WORKSPACE" -list
+      - name: Build ipa for distribution
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      email:
+        recipients:
+          - aa5623@hotmail.com
+        notify:
+          success: true
+          failure: false
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
