@@ -7,8 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
-    // AdMob ad unit ID - reference this from wherever you load ads (banner/interstitial/rewarded)
+    // AdMob ad unit IDs - reference these from wherever you load ads (banner/interstitial/rewarded)
     static let adUnitID = "ca-app-pub-2149260055615094/6069577684"
+    static let adUnitID2 = "ca-app-pub-2149260055615094/8751581342"
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
