@@ -1,13 +1,18 @@
 import UIKit
 import Capacitor
+import GoogleMobileAds
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
+    // AdMob ad unit ID - reference this from wherever you load ads (banner/interstitial/rewarded)
+    static let adUnitID = "ca-app-pub-2149260055615094/6069577684"
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        GADMobileAds.sharedInstance().start(completionHandler: nil)
         return true
     }
 
