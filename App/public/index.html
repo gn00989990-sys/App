@@ -145,6 +145,35 @@
             margin-bottom: 10px;
         }
 
+        /* ============= 小測驗模式頁 - 可愛小提示徽章 ============= */
+        .quiz-mode-intro {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #fff6da, #ffe6b3);
+            border: 2px dashed #f5a742;
+            border-radius: 999px;
+            padding: 10px 22px;
+            margin: 2px 0 22px 0;
+            max-width: 90vw;
+            box-shadow: 0 6px 14px rgba(230, 126, 34, 0.18);
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #b3690f;
+            line-height: 1.5;
+            text-align: center;
+            animation: quizIntroPop 0.4s ease;
+        }
+        .quiz-mode-intro-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        @keyframes quizIntroPop {
+            0% { transform: scale(0.85); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         /* ============= 小測驗 - 模式選擇卡 (與 vocab-item 卡片風格一致) ============= */
         .quiz-mode-grid {
             display: flex;
@@ -693,6 +722,8 @@
 
             #dialogue-controls { gap: 8px; }
 
+            .quiz-mode-intro { font-size: 12.5px; padding: 9px 16px; gap: 6px; }
+            .quiz-mode-intro-icon { font-size: 17px; }
             .quiz-mode-grid { gap: 14px; max-width: 340px; }
             .quiz-mode-card { width: 145px; padding: 18px 12px; border-radius: 14px; }
             .quiz-mode-emoji { font-size: 38px; margin-bottom: 6px; }
@@ -870,7 +901,10 @@
     <div id="quiz-mode-page" class="page" style="display: none;">
         <img src="BG/quiz_time.PNG" alt="小測驗" class="page-header-image">
         <button class="return-btn" onclick="showPage('home-page')">返回主頁</button>
-        <p style="font-size:16px; color:#777; max-width:420px; margin-top:-10px;">每次隨機抽 8 題，題目嚟自所有生字主題！揀你想要嘅挑戰模式：</p>
+        <div class="quiz-mode-intro">
+            <span class="quiz-mode-intro-icon">🎯</span>
+            <span>每次隨機抽 8 題，題目嚟自所有生字主題📚揀你想要嘅挑戰模式</span>
+        </div>
         <div class="quiz-mode-grid">
             <button class="quiz-mode-card listening-mode" id="listening-quiz-btn">
                 <div class="quiz-mode-emoji">🔊</div>
