@@ -41,15 +41,12 @@ workflows:
       - name: Ensure Xcode scheme is available
         script: |
           xcodebuild -workspace "$XCODE_WORKSPACE" -list
-      - name: Increment build number
+      - name: Set build number
         script: |
           #!/bin/sh
           set -e
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID" 2>/dev/null || echo 0)
-          LATEST_TESTFLIGHT_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$BUNDLE_ID" 2>/dev/null || echo 0)
-          NEXT_BUILD_NUMBER=$(( (LATEST_BUILD_NUMBER > LATEST_TESTFLIGHT_BUILD_NUMBER ? LATEST_BUILD_NUMBER : LATEST_TESTFLIGHT_BUILD_NUMBER) + 1 ))
-          echo "Setting build number to $NEXT_BUILD_NUMBER"
-          agvtool new-version -all "$NEXT_BUILD_NUMBER"
+          echo "Setting CFBundleVersion (build number) to $PROJECT_BUILD_NUMBER"
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $PROJECT_BUILD_NUMBER;/g" App.xcodeproj/project.pbxproj
       - name: Build ipa for distribution
         script: |
           xcode-project build-ipa \
