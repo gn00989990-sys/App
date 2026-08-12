@@ -957,6 +957,7 @@
         </div>
     </div>
 
+    <script src="capacitor.js"></script>
     <script>
 // 生字資料庫 (每組 20 個生字)
 let vocab = [
@@ -1278,7 +1279,7 @@ function showPage(pageId) {
     document.getElementById(pageId).style.display = 'flex';
 
     // 離開頁面時自動停止發音
-    window.speechSynthesis.cancel();
+    stopSpeaking();
     dialoguePlayToken++;
 }
 
@@ -1345,7 +1346,7 @@ function renderDialogueTopics() {
     card.appendChild(label);
 
     card.addEventListener('click', () => {
-      window.speechSynthesis.cancel(); // 切換主題時，停止正在播放嘅語音
+      stopSpeaking(); // 切換主題時，停止正在播放嘅語音
       dialoguePlayToken++;
       showPage('dialogue-detail-page');
       displayDialogueScript(d.id);
@@ -1419,28 +1420,56 @@ if ('speechSynthesis' in window) {
     window.speechSynthesis.onvoiceschanged = loadDialogueVoices;
 }
 
+function isSpeechSynthesisSupported() {
+    return 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
+}
+
+function getCapacitorTTSPlugin() {
+    return window.Capacitor?.Plugins?.TextToSpeech || null;
+}
+
+function stopSpeaking() {
+    const ttsPlugin = getCapacitorTTSPlugin();
+    if (ttsPlugin && typeof ttsPlugin.stop === 'function') {
+        ttsPlugin.stop().catch(() => {});
+    }
+    if (window.speechSynthesis && typeof window.speechSynthesis.cancel === 'function') {
+        window.speechSynthesis.cancel();
+    }
+}
+
+document.addEventListener('touchstart', () => {
+    if (isSpeechSynthesisSupported()) {
+        window.speechSynthesis.getVoices();
+    }
+}, { once: true });
+
+document.addEventListener('click', () => {
+    if (isSpeechSynthesisSupported()) {
+        window.speechSynthesis.getVoices();
+    }
+}, { once: true });
+
 // 根據角色名稱取得對應聲線設定 (Alice / Bob 扮 5 歲細路聲，Server 用成人男聲)
 // 呢度刻意用好細嘅 pitch/rate 調整 (最多加 10-15%)，因為將 pitch 谷得太盡
 // 會令把聲變得好假、好尖 (chipmunk 效果)。反而應該優先揀一把本身已經
 // 比較後生/清脆嘅底層聲線，先至加少少音調同語速，聽落先似真人細路聲。
 function getSpeakerVoiceOptions(speakerName) {
     if (speakerName === 'Bob') {
-        // 5 歲男孩：有真童聲就直接用 (唔使再調)；冇就用男聲底，只加少少音調扮後生
-        if (preferredChildVoice) return { voice: preferredChildVoice, rate: 1.03 };
-        if (preferredBoyishVoice) return { voice: preferredBoyishVoice, pitch: 1.12, rate: 1.05 };
-        return { pitch: 1.15, rate: 1.05 };
+        // Bob 用普通成年男聲，若有第二把男聲則優先使用，否則回退到第一把男聲
+        if (preferredMaleVoiceAlt) return { voice: preferredMaleVoiceAlt, pitch: 1, rate: 1 };
+        if (preferredMaleVoice) return { voice: preferredMaleVoice, pitch: 1, rate: 1 };
+        return { pitch: 1, rate: 1 };
     }
     if (speakerName === 'Server') {
-        // Server 係成人侍應，保持成人男聲，唔使扮童聲
-        if (preferredMaleVoiceAlt) return { voice: preferredMaleVoiceAlt, pitch: 1 };
-        if (preferredMaleVoice) return { voice: preferredMaleVoice, pitch: 0.85 };
-        return { pitch: 0.6 };
+        // Server 係另一把成年男聲，保持成人口音和音調
+        if (preferredMaleVoice) return { voice: preferredMaleVoice, pitch: 1, rate: 1 };
+        if (preferredMaleVoiceAlt) return { voice: preferredMaleVoiceAlt, pitch: 1, rate: 1 };
+        return { pitch: 1, rate: 1 };
     }
-    // Alice 及其他角色：5 歲女孩。優先用本身已經比較後生/清脆嘅女聲，
-    // 只加好少少音調 (10% 左右) 同語速，避免出現「扮嘢」嘅假聲效果
-    if (preferredChildVoice) return { voice: preferredChildVoice, rate: 1.03 };
-    if (preferredFemaleVoice) return { voice: preferredFemaleVoice, pitch: 1.1, rate: 1.04 };
-    return { pitch: 1.1, rate: 1.04 };
+    // Alice 及其他角色：使用正常女聲
+    if (preferredFemaleVoice) return { voice: preferredFemaleVoice, pitch: 1, rate: 1 };
+    return { pitch: 1, rate: 1 };
 }
 
 // 普通話/廣東話按鈕統一用嚟揀聲線嘅小工具
@@ -1456,8 +1485,47 @@ function getChineseVoiceOptions(langCode) {
 
 // 核心功能：單音播放控制函數
 function speakText(text, langCode, callback, voiceOptions) {
+    if (!text) {
+        if (callback) callback();
+        return;
+    }
+
+    const locale = langCode || 'en-US';
+    const rate = (voiceOptions && typeof voiceOptions.rate === 'number') ? voiceOptions.rate : 1.0;
+    const pitch = (voiceOptions && typeof voiceOptions.pitch === 'number') ? voiceOptions.pitch : 1.0;
+
+    const ttsPlugin = getCapacitorTTSPlugin();
+    if (ttsPlugin && typeof ttsPlugin.speak === 'function') {
+        ttsPlugin.speak({ text, language: locale, rate, pitch })
+            .then(() => { if (callback) callback(); })
+            .catch((err) => { console.warn('Capacitor TextToSpeech failed', err); if (callback) callback(); });
+        return;
+    }
+
+    if (navigator.tts && typeof navigator.tts.speak === 'function') {
+        navigator.tts.speak({ text, locale, rate },
+            () => { if (callback) callback(); },
+            err => { console.warn('navigator.tts speak failed', err); if (callback) callback(); }
+        );
+        return;
+    }
+
+    if (window.plugins && window.plugins.tts && typeof window.plugins.tts.speak === 'function') {
+        window.plugins.tts.speak({ text, locale, rate },
+            () => { if (callback) callback(); },
+            err => { console.warn('plugins.tts speak failed', err); if (callback) callback(); }
+        );
+        return;
+    }
+
+    if (!isSpeechSynthesisSupported()) {
+        console.warn('Speech synthesis not supported in this environment', text, langCode);
+        if (callback) callback();
+        return;
+    }
+
     let utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = langCode;
+    utterance.lang = locale;
     if (voiceOptions) {
         if (voiceOptions.voice) utterance.voice = voiceOptions.voice;
         if (typeof voiceOptions.pitch === 'number') utterance.pitch = voiceOptions.pitch;
@@ -1466,12 +1534,21 @@ function speakText(text, langCode, callback, voiceOptions) {
     if (callback) {
         utterance.onend = callback;
     }
-    window.speechSynthesis.speak(utterance);
+
+    try {
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+        }
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.warn('Web Speech speak failed', e);
+        if (callback) callback();
+    }
 }
 
 // 核心功能：連讀四合一（播完一個等 1 秒播下一個）
 function speakAllSequence(engText, chiText) {
-    window.speechSynthesis.cancel(); // 先清空目前的語音
+    stopSpeaking(); // 先清空目前的語音
 
     // 第一步：讀英文
     speakText(engText, 'en-US', () => {
@@ -1515,7 +1592,7 @@ function displayVocabItems(topic) {
       btnEn.classList.add('vocab-speak-btn', 'btn-en');
       btnEn.innerHTML = '🇺🇸 Speak English';
       btnEn.addEventListener('click', () => {
-          window.speechSynthesis.cancel();
+          stopSpeaking();
           speakText(item.englishName, 'en-US');
       });
 
@@ -1524,7 +1601,7 @@ function displayVocabItems(topic) {
       btnPnh.classList.add('vocab-speak-btn', 'btn-pnh');
       btnPnh.innerHTML = '🇨🇳 讀普通話';
       btnPnh.addEventListener('click', () => {
-          window.speechSynthesis.cancel();
+          stopSpeaking();
           speakText(item.chineseName, 'zh-CN', null, getChineseVoiceOptions('zh-CN'));
       });
 
@@ -1533,7 +1610,7 @@ function displayVocabItems(topic) {
       btnCanton.classList.add('vocab-speak-btn', 'btn-canton');
       btnCanton.innerHTML = '🇭🇰 講廣東話';
       btnCanton.addEventListener('click', () => {
-          window.speechSynthesis.cancel();
+          stopSpeaking();
           speakText(item.chineseName, 'zh-HK', null, getChineseVoiceOptions('zh-HK'));
       });
 
@@ -1575,7 +1652,7 @@ function parseDialogueSentences(currentDiag) {
 
 // 播放某一句 (list view 同 step view 都用呢個)，順便換返配對嘅圖
 function practiceSentence(currentDiag, dialogueImage, sentenceItem) {
-  window.speechSynthesis.cancel();
+  stopSpeaking();
   dialoguePlayToken++; // 令連播模式失效，避免同呢句練習撞聲
 
   if (currentDiag.imageSegments) {
@@ -1711,14 +1788,14 @@ function renderCurrentDialogueView() {
 
 // 「Full List」／「Step-by-Step Practice」切換按鈕 (只需要綁定一次)
 document.getElementById('mode-list-btn').addEventListener('click', () => {
-  window.speechSynthesis.cancel();
+  stopSpeaking();
   dialoguePlayToken++;
   dialogueViewMode = 'list';
   renderCurrentDialogueView();
 });
 
 document.getElementById('mode-step-btn').addEventListener('click', () => {
-  window.speechSynthesis.cancel();
+  stopSpeaking();
   dialoguePlayToken++;
   dialogueViewMode = 'step';
   dialogueStepIndex = 0;
@@ -1774,7 +1851,7 @@ function displayDialogueScript(dialogueId) {
 
 
       newPlayButton.addEventListener('click', () => {
-          window.speechSynthesis.cancel(); // 先清空目前的語音
+          stopSpeaking(); // 先清空目前的語音
           dialoguePlayToken++; // 每次重新播放都用新 token，令之前嘅迴圈失效
           let myToken = dialoguePlayToken;
 
@@ -1858,7 +1935,7 @@ function displayDialogueScript(dialogueId) {
       stopButton.parentNode.replaceChild(newStopButton, stopButton);
 
       newStopButton.addEventListener('click', () => {
-          window.speechSynthesis.cancel();
+          stopSpeaking();
           dialoguePlayToken++; // 令目前嘅朗讀迴圈失效
           clearSpeakingHighlight();
           // 按停止後回復顯示封面圖
@@ -1935,7 +2012,7 @@ document.getElementById('start-quiz-btn').addEventListener('click', () => {
 });
 
 function exitQuiz() {
-    window.speechSynthesis.cancel();
+    stopSpeaking();
     if (currentTopic) {
         showPage('vocab-display-page');
     } else {
@@ -2002,7 +2079,7 @@ function handleQuizAnswer(optionText, btnEl) {
         btnEl.querySelector('.quiz-mark').innerHTML = '<span class="tick-anim">✅</span>';
         playHappySound();
         // 答對後讀出正確答案 (英文生字)，等小朋友聽多次加深印象
-        window.speechSynthesis.cancel();
+        stopSpeaking();
         setTimeout(() => {
             speakText(q.correct, 'en-US');
         }, 300);
@@ -2171,7 +2248,7 @@ function startMixedQuiz(type) {
 }
 
 function exitMixedQuiz() {
-    window.speechSynthesis.cancel();
+    stopSpeaking();
     showPage('quiz-mode-page');
 }
 
@@ -2201,7 +2278,7 @@ function renderMixedQuizQuestion() {
         questionTextEl.innerText = '';
         subEl.innerText = '聽聽讀音，揀出啱嘅圖示';
         // 每次顯示新題目時自動播放一次英文讀音
-        window.speechSynthesis.cancel();
+        stopSpeaking();
         speakText(q.target.englishName, 'en-US');
     } else {
         emojiEl.innerText = '📖';
@@ -2209,7 +2286,7 @@ function renderMixedQuizQuestion() {
         questionTextEl.innerText = q.target.englishName;
         subEl.innerText = '呢個英文字係咩意思？';
         // 閱讀模式都會讀出英文題目，等小朋友聽下正確讀音
-        window.speechSynthesis.cancel();
+        stopSpeaking();
         speakText(q.target.englishName, 'en-US');
     }
 
@@ -2287,7 +2364,7 @@ function handleMixedQuizAnswer(optionItem, btnEl) {
 document.getElementById('mixed-quiz-replay-btn').addEventListener('click', () => {
     let q = mixedQuizSession.questions[mixedQuizSession.currentIndex];
     if (!q) return;
-    window.speechSynthesis.cancel();
+    stopSpeaking();
     speakText(q.target.englishName, 'en-US');
 });
 
@@ -2308,7 +2385,7 @@ document.getElementById('mixed-quiz-prev-btn').addEventListener('click', () => {
 });
 
 function showMixedQuizResult() {
-    window.speechSynthesis.cancel();
+    stopSpeaking();
     let score = mixedQuizSession.answers.filter(a => a && a.correct).length;
 
     document.getElementById('mixed-quiz-question-view').style.display = 'none';
