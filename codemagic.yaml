@@ -23,30 +23,40 @@ workflows:
         - pattern: main
           include: true
     scripts:
-      - name: Install Capacitor iOS package
+      - name: Install Capacitor + TTS plugin
         script: |
           if [ ! -f package.json ]; then
             npm init -y
           fi
-          npm install @capacitor/core @capacitor/ios --save-exact
+          npm install @capacitor/core @capacitor/ios @capacitor/cli @capacitor-community/text-to-speech --save-exact
+
+      - name: Sync Capacitor (copies capacitor.js + plugin JS into App/public, updates Podfile)
+        script: |
+          npx cap sync ios
+
       - name: Fix Podfile path to node_modules
         script: |
           sed -i '' 's#\.\./\.\./node_modules#./node_modules#g' Podfile
+
       - name: Install CocoaPods dependencies
         script: |
           pod install
+
       - name: Set up code signing settings on Xcode project
         script: |
           xcode-project use-profiles
+
       - name: Ensure Xcode scheme is available
         script: |
           xcodebuild -workspace "$XCODE_WORKSPACE" -list
+
       - name: Set build number
         script: |
           #!/bin/sh
           set -e
           echo "Setting CFBundleVersion (build number) to $PROJECT_BUILD_NUMBER"
           sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $PROJECT_BUILD_NUMBER;/g" App.xcodeproj/project.pbxproj
+
       - name: Build ipa for distribution
         script: |
           xcode-project build-ipa \
